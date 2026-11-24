@@ -51,9 +51,25 @@ if uploaded_file is not None:
     upload_folder = "uploads"
     os.makedirs(upload_folder, exist_ok=True)
 
+    # ============================================
+    # 取得安全的英文檔名
+    # 避免中文、空格或特殊符號造成 UnicodeEncodeError
+    # ============================================
+    file_extension = os.path.splitext(uploaded_file.name)[1].lower()
+
+    # 若副檔名不是 .mp3，強制設為 .mp3
+    if file_extension != ".mp3":
+        file_extension = ".mp3"
+
+    safe_filename = (
+        "uploaded_audio_"
+        + datetime.now().strftime("%Y%m%d_%H%M%S")
+        + file_extension
+    )
+
     audio_path = os.path.join(
         upload_folder,
-        uploaded_file.name
+        safe_filename
     )
 
     with open(audio_path, "wb") as f:
@@ -167,7 +183,6 @@ if uploaded_file is not None:
         # 產生 Word 檔
         # ============================================
         def create_word_document(
-            file_name,
             meeting_minutes
         ):
             document = Document()
@@ -177,15 +192,12 @@ if uploaded_file is not None:
             style.font.size = Pt(12)
 
             title = document.add_heading(
-                f"{file_name} 會議記錄",
+                "會議記錄",
                 level=0
             )
             title.alignment = WD_ALIGN_PARAGRAPH.CENTER
 
             info = document.add_paragraph()
-            info.add_run(
-                f"音訊檔案：{file_name}\n"
-            )
             info.add_run(
                 "產生時間："
                 f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
@@ -207,16 +219,19 @@ if uploaded_file is not None:
             for paragraph_text in paragraphs:
                 document.add_paragraph(paragraph_text)
 
-            word_filename = (
-                f"{os.path.splitext(file_name)[0]}_會議記錄.docx"
+            # 產生安全的英文 Word 檔名
+            word_base_name = (
+                "meeting_minutes_"
+                + datetime.now().strftime("%Y%m%d_%H%M%S")
             )
+
+            word_filename = f"{word_base_name}.docx"
 
             document.save(word_filename)
 
             return word_filename
 
         word_filename = create_word_document(
-            uploaded_file.name,
             meeting_minutes
         )
 
