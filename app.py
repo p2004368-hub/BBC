@@ -11,7 +11,7 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 # 頁面設定
 # ============================================
 st.set_page_config(
-    page_title="MP3 會議記錄產生器",
+    page_title="MP3 Meeting Minutes Generator",
     page_icon="🎤",
     layout="centered"
 )
@@ -47,31 +47,22 @@ uploaded_file = st.file_uploader(
 if uploaded_file is not None:
     st.success(f"已上傳檔案：{uploaded_file.name}")
 
-    # 儲存上傳的 MP3
+    # 建立暫存資料夾
     upload_folder = "uploads"
     os.makedirs(upload_folder, exist_ok=True)
 
     # ============================================
-    # 取得安全的英文檔名
-    # 避免中文、空格或特殊符號造成 UnicodeEncodeError
+    # 產生完全安全的英文暫存檔名
     # ============================================
-    file_extension = os.path.splitext(uploaded_file.name)[1].lower()
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-    # 若副檔名不是 .mp3，強制設為 .mp3
-    if file_extension != ".mp3":
-        file_extension = ".mp3"
-
-    safe_filename = (
-        "uploaded_audio_"
-        + datetime.now().strftime("%Y%m%d_%H%M%S")
-        + file_extension
-    )
-
+    safe_audio_filename = f"uploaded_audio_{timestamp}.mp3"
     audio_path = os.path.join(
         upload_folder,
-        safe_filename
+        safe_audio_filename
     )
 
+    # 將使用者上傳的 MP3 儲存為安全英文檔名
     with open(audio_path, "wb") as f:
         f.write(uploaded_file.getbuffer())
 
@@ -83,9 +74,19 @@ if uploaded_file is not None:
         with st.spinner("正在轉錄 MP3，請稍候……"):
 
             with open(audio_path, "rb") as audio_file:
+
+                # ============================================
+                # 重要修改：
+                # 使用純英文檔名與 MIME type，
+                # 避免中文檔名造成 UnicodeEncodeError
+                # ============================================
                 transcription = client.audio.transcriptions.create(
                     model="whisper-1",
-                    file=audio_file,
+                    file=(
+                        "audio.mp3",
+                        audio_file,
+                        "audio/mpeg"
+                    ),
                     response_format="text"
                 )
 
@@ -220,12 +221,9 @@ if uploaded_file is not None:
                 document.add_paragraph(paragraph_text)
 
             # 產生安全的英文 Word 檔名
-            word_base_name = (
-                "meeting_minutes_"
-                + datetime.now().strftime("%Y%m%d_%H%M%S")
+            word_filename = (
+                f"meeting_minutes_{timestamp}.docx"
             )
-
-            word_filename = f"{word_base_name}.docx"
 
             document.save(word_filename)
 
